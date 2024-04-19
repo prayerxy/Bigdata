@@ -2,9 +2,9 @@ import numpy as np
 import pickle as pkl
 data_path = 'Data.txt'
 
-LINK_MATRIX_PATH = ".//M//link_matrix.pkl"
-R_VECTOR_PATH = ".//vector//r_vector.pkl"
-RESULT_PATH = ".//vector//result.txt"
+LINK_MATRIX_PATH = ".//basic_block//M//link_matrix.pkl"
+R_VECTOR_PATH = ".//basic_block//vector//r_vector.pkl"
+RESULT_PATH = ".//basic_block//result.txt"
 OUTPUT_NUM = 20  #the number of nodes to output
 
 max_node_index=8297  #the maximum number of nodes in the graph
