@@ -10,7 +10,6 @@ OUTPUT_NUM = 20  #the number of nodes to output
 max_node_index=8297  #the maximum number of nodes in the graph
 belta = 0.85  #the probability of following the link
 epsilon = 1e-8   #the threshold of the difference between the old and new pagerank
-# nodes_set={}  #the list of nodes that have out-degree or in-degree
 Num=8298  #the number of nodes in the graph
 
 def load_data():
@@ -36,7 +35,7 @@ def load_data():
             pkl.dump(row, f)
 
 def compute_rnew(r_old):
-    r_new = np.zeros(Num)
+    r_new = np.zeros(Num)*1.0
     with open(LINK_MATRIX_PATH, 'rb') as f:
         while True:
             try:
@@ -49,17 +48,18 @@ def compute_rnew(r_old):
             except EOFError:
                 break  # 如果到达文件末尾，跳出循环
     #re-insert the leaked
-    leaked=np.ones(Num)*(1-np.sum(r_new))/Num
+    leaked=np.ones(Num)*(1-belta)/Num
     r_new+=leaked
     return r_new
 
 def basic_pagerank():
     #initialize the r_old
-    r_old = np.ones(Num) / Num
+    r_old = np.ones(Num)*1.0 / Num
     #compute the r_new
     r_new = compute_rnew(r_old)
     #iteration
     while np.sum(np.abs(r_new - r_old)) > epsilon:
+        print(np.sum(np.abs(r_new - r_old)))
         r_old = r_new
         r_new = compute_rnew(r_old)
     #保存结果
@@ -74,7 +74,7 @@ def print_result(r_new):
         print("The No.%d node is %d, and the pagerank is %.10f" % (i, index[i], r_new[index[i]]))
     with open(RESULT_PATH, "w") as f:
         for i in range(100):
-            f.write("%d %.10f\n" % (index[i], r_new[index[i]]))
+            f.write(f"{index[i]} {r_new[index[i]]}\n")
 
 if __name__ == '__main__':
     load_data()
