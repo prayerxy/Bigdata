@@ -14,7 +14,7 @@ OUTPUT_NUM = 100  # top 100 nodes
 max_node_index=8297  #the maximum number of nodes in the graph
 belta = 0.85  #the probability of following the link
 epsilon = 1e-8   #the threshold of the difference between the old and new pagerank
-Num=8298  #the number of nodes in the graph
+Num=8297  #the number of nodes in the graph
 
 group_num=20 #分组数量
 
@@ -39,7 +39,7 @@ def load_data():
             link_matrix[fr][1]+=1   #degree
             link_matrix[fr][2].append(to)  #dest
             max_node_index = max(max_node_index,fr,to)
-    Num=max_node_index+1
+    Num=max_node_index
     #把link_matrix中出度为0的节点删除
     link_matrix=[link_matrix[i] for i in range(max_node_index+1) if link_matrix[i][1]>0]
     link_matrix_groups=[[[i,0,[]] for i in range(max_node_index+1)] for j in range(group_num)]
@@ -60,17 +60,10 @@ def load_data():
 
 
 def compute_rnew(flag):
-    error=0.0
+    sum_r_group=np.zeros(group_num)
     for i in range(group_num):
         #initialize r_new_stripe
-        r_new_stripe =np.ones(get_group_size())*1.0*(1-belta) / Num
-        #读取r_old_stripe
-        if flag==0:
-            with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'rb') as f:
-                r_old_stripe=pkl.load(f)
-        else:
-            with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'rb') as f:
-                r_old_stripe=pkl.load(f)
+        r_new_stripe =np.zeros(get_group_size())
         with open(LINK_MATRIX_PATH_PREFIX+str(i)+LINK_MATRIX_PATH_SUFFIX,'rb') as fl:
             while True:
                 try:
@@ -91,8 +84,7 @@ def compute_rnew(flag):
                         r_new_stripe[dest_index] += belta * r_tmp_stripe[src%get_group_size()] / degree
                 except EOFError:
                     break  # 如果到达文件末尾，跳出循环
-        #计算误差
-        error+=np.sum(np.abs(r_new_stripe-r_old_stripe))
+        sum_r_group[i]=np.sum(r_new_stripe)
         #保存r_new至磁盘上
         if flag==0:
             with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'wb') as fr:
@@ -100,6 +92,29 @@ def compute_rnew(flag):
         else:
             with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'wb') as fr:
                 pkl.dump(r_new_stripe,fr)
+    return np.sum(sum_r_group)
+
+def normalize_r_new(flag,sum):
+    error=0.0
+    for i in range(group_num):
+        if flag==0:
+            with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'rb') as f:
+                r_new_stripe=pkl.load(f)
+            with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'rb') as f1:
+                r_old_stripe=pkl.load(f1)
+        else:
+            with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'rb') as f:
+                r_new_stripe=pkl.load(f)
+            with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'rb') as f1:
+                r_old_stripe=pkl.load(f1)
+        r_new_stripe+=np.ones(get_group_size())*(1-sum)/Num
+        error+=np.sum(np.abs(r_new_stripe-r_old_stripe))
+        if flag==0:
+            with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'wb') as f2:
+                pkl.dump(r_new_stripe,f2)
+        else:
+            with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'wb') as f2:
+                pkl.dump(r_new_stripe,f2)
     return error
 
 def block_stripe_pagerank():
@@ -112,7 +127,8 @@ def block_stripe_pagerank():
     #compute the r_new
     flag=0
     while True:
-        error=compute_rnew(flag%2)
+        sum=compute_rnew(flag%2)
+        error=normalize_r_new(flag%2,sum)
         flag+=1
         print("error:",error)
         if error<epsilon:
