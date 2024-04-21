@@ -48,10 +48,10 @@ def compute_rnew(r_old):
             except EOFError:
                 break  # 如果到达文件末尾，跳出循环
     #re-insert the leaked
-    sum=np.sum(r_new)
-    sum-=r_new[0]  
-    leaked=np.ones(Num+1)*(1-sum)/Num
-    r_new+=leaked
+    # leaked=np.ones(Num)*(1-belta)/Num
+    s = np.sum(r_new)-r_new[0]
+    r_new+=np.ones(Num+1)*(1-s)/Num
+    # r_new+=leaked
     return r_new
 
 def basic_pagerank():
