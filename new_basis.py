@@ -51,6 +51,7 @@ def compute_rnew(r_old):
     # leaked=np.ones(Num)*(1-belta)/Num
     s = np.sum(r_new)-r_new[0]
     r_new+=np.ones(Num+1)*(1-s)/Num
+    r_new[0] = 0.0
     # r_new+=leaked
     return r_new
 

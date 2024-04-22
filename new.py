@@ -67,7 +67,7 @@ def compute_rnew(flag):
     sum_r_group=np.zeros(group_num)
     for i in range(group_num):
         #initialize r_new_stripe
-        r_new_stripe =np.zeros(get_group_size())
+        r_new_stripe =np.zeros(get_group_size())*1.0
         fl = open(LINK_MATRIX_PATH_PREFIX+str(i)+LINK_MATRIX_PATH_SUFFIX,'rb')
         # 获取矩阵
         matrix_stripe = pkl.load(fl)
@@ -113,7 +113,7 @@ def normalize_r_new(flag,sum):
                 r_new_stripe=pkl.load(f)
             with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'rb') as f1:
                 r_old_stripe=pkl.load(f1)
-        r_new_stripe+=np.ones(get_group_size())*(1-sum)/Num
+        r_new_stripe+=np.ones(get_group_size())*1.0*(1-sum)/Num
         if i==0:
             r_new_stripe[0] = 0.0
         if i==group_num-1:
@@ -133,7 +133,7 @@ def block_stripe_pagerank():
     for i in range(group_num):
         r_stripe =np.ones(get_group_size())*1.0 / Num
         if i==0:
-            r_stripe[0] = 0
+            r_stripe[0] = 0.0
         if i==group_num-1:
             r_stripe[get_last_group_size():] = [0]*(get_group_size()-get_last_group_size())
         with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'wb') as f:
@@ -145,7 +145,7 @@ def block_stripe_pagerank():
         error=normalize_r_new(flag%2,sum)
         flag+=1
         print("error:",error)
-        if error<epsilon:
+        if error<=epsilon:
             break
 
 def print_result():
