@@ -24,6 +24,9 @@ def get_group_id(node_id):
 def get_group_size():
     return Num//group_num+1
 
+def get_last_group_size():
+    return Num%(get_group_size())+1
+
 def load_data():
     # Load the data from the file
     global max_node_index
@@ -51,7 +54,7 @@ def load_data():
             link_matrix_groups[group_id][line[0]][2].append(dest)
     #把每个group中的出度为0的节点删除
     for i in range(group_num):
-        link_matrix_groups[i]=[link_matrix_groups[i][j] for j in range(max_node_index) if link_matrix_groups[i][j][1]>0]
+        link_matrix_groups[i]=[link_matrix_groups[i][j] for j in range(max_node_index+1) if link_matrix_groups[i][j][1]>0]
     #保存到文件
     for i in range(group_num):
         with open(LINK_MATRIX_PATH_PREFIX+str(i)+LINK_MATRIX_PATH_SUFFIX,'wb') as f:
@@ -108,6 +111,10 @@ def normalize_r_new(flag,sum):
             with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'rb') as f1:
                 r_old_stripe=pkl.load(f1)
         r_new_stripe+=np.ones(get_group_size())*(1-sum)/Num
+        if i==0:
+            r_new_stripe[0] = 0.0
+        if i==group_num-1:
+            r_new_stripe[get_last_group_size():] = [0]*(get_group_size()-get_last_group_size())
         error+=np.sum(np.abs(r_new_stripe-r_old_stripe))
         if flag==0:
             with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'wb') as f2:
@@ -122,6 +129,10 @@ def block_stripe_pagerank():
     #分块 储存
     for i in range(group_num):
         r_stripe =np.ones(get_group_size())*1.0 / Num
+        if i==0:
+            r_stripe[0] = 0.0
+        if i==group_num-1:
+            r_stripe[get_last_group_size():] = [0]*(get_group_size()-get_last_group_size())
         with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'wb') as f:
             pkl.dump(r_stripe,f)
     #compute the r_new
