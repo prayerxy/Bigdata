@@ -52,6 +52,7 @@ def compute_rnew(r_old):
     sum-=r_new[0]  
     leaked=np.ones(Num+1)*(1-sum)/Num
     r_new+=leaked
+    r_new[0] = 0.0
     return r_new
 
 def basic_pagerank():
