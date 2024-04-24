@@ -54,6 +54,43 @@
 
 
 
+
+
+
+
+### block stripe pagerank
+
+#### 算法介绍
+
+![2](2.jpg)
+
+我们的分块算法的数据组织形式如上所示，我们依据对r的分组，也相应地对M进行分组。把与每组r更新相关的M组织成如上形式进行一一对应。当我们对某一组的r进行更新时，我们便可以定位与此相关的分组M，然后进行更新即可。
+
+我们对**spider traps**问题和**dead ends**问题的解决方法与基本算法完全一致，block stripe算法就是基本算法在内存不足的情况下的一种变形计算方式。
+
+
+
+
+
+### block stripe pagerank加速算法
+
+#### 算法介绍
+
+如果我们每次可以将M的一个分组读入内存，那么我们便可以使用这个算法来大大加快速度。我们对某一组r_new进行计算时，我们来循环确定M中的src是否属于某一相同的组，我们将其组成一个列表，然后导入某一块的r值进入内存。这样的话，对于某一组r_new的更新我们可以做的不重复的读取某一组的r。于是达到了加速的目的。其中我们主要的修改如下：
+
+1. M分块读取，不再按行读取；
+2. 分开r_new计算时，如果src属于某一相同的块，直接导入此块的r值，然后一并更新。
+
+
+
+
+
+## 关键部分代码解析
+
+我们按照上述解释的那样，分basic Pagerank，block stripe pagerank以及block stripe pagerank加速算法来解释。
+
+### basic Pagerank
+
 #### 代码实现
 
 我们Pagerank基本算法的实现是建立在内存充足的基础上的，即我们可以把所有节点的Pagerank值和他们的M矩阵都读入到内存。每次计算的时候其实便可以进行矩阵运算来达到加速运算的目的。
@@ -186,16 +223,6 @@ def print_result(r_new):
 
 
 ### block stripe pagerank
-
-#### 算法介绍
-
-![2](2.jpg)
-
-我们的分块算法的数据组织形式如上所示，我们依据对r的分组，也相应地对M进行分组。把与每组r更新相关的M组织成如上形式进行一一对应。当我们对某一组的r进行更新时，我们便可以定位与此相关的分组M，然后进行更新即可。
-
-我们对**spider traps**问题和**dead ends**问题的解决方法与基本算法完全一致，block stripe算法就是基本算法在内存不足的情况下的一种变形计算方式。
-
-
 
 #### 代码实现
 
@@ -386,7 +413,132 @@ def print_result():
 
 ### block stripe pagerank加速算法
 
-#### 算法介绍
+#### 代码实现
 
-如果我们每次可以将M的一个分组读入内存，那么我们便可以使用这个算法来大大加快速度。我们对某一组r_new进行计算时，便可以首先根据M中的src字段来确定
+##### 导入数据集
 
+加速算法中导入数据集与**block stripe pagerank**算法中不一样的便是，此时我们的M是可以分块读取的，而不是按行读取。所以我们把M分块写入时我们是直接将一整块的内容导入磁盘，而不是一行行写入磁盘。
+
+**block stripe pagerank**算法如下：
+
+```python
+#保存到文件
+    for i in range(group_num):
+        with open(LINK_MATRIX_PATH_PREFIX+str(i)+LINK_MATRIX_PATH_SUFFIX,'wb') as f:
+            for line in link_matrix_groups[i]:
+                pkl.dump(line,f)
+```
+
+
+
+**block stripe pagerank**加速算法如下：
+
+```python
+#保存到文件
+    for i in range(group_num):
+        with open(LINK_MATRIX_PATH_PREFIX+str(i)+LINK_MATRIX_PATH_SUFFIX,'wb') as f:
+            pkl.dump(link_matrix_groups[i],f)
+```
+
+
+
+##### 分块r_new计算
+
+依据我们上述的思想，我们加速算法计算r_new如下：
+
+```python
+def compute_rnew(flag):
+    sum_r_group=np.zeros(group_num)
+    for i in range(group_num):
+        #initialize r_new_stripe
+        r_new_stripe =np.zeros(get_group_size())*1.0
+        fl = open(LINK_MATRIX_PATH_PREFIX+str(i)+LINK_MATRIX_PATH_SUFFIX,'rb')
+        # 获取矩阵
+        matrix_stripe = pkl.load(fl)
+        # r_old_stripe
+        for j in range(group_num):
+            # src列表获取
+            src_index_in_matrix = [idx for idx, elem in enumerate(matrix_stripe) if  get_group_size()*j<= elem[0] < get_group_size()*(j+1)] 
+            if flag==0:
+                with open(R_VECTOR_PATH_PREFIX+str(j)+R_VECTOR_PATH_SUFFIX,'rb') as f_r:
+                    r_tmp_stripe=pkl.load(f_r)
+            else:
+                with open(R_NEW_VECTOR_PATH_PREFIX+str(j)+R_NEW_VECTOR_PATH_SUFFIX,'rb') as f_r:
+                    r_tmp_stripe=pkl.load(f_r)
+            for src_index in src_index_in_matrix:
+                index = matrix_stripe[src_index][0]%get_group_size()
+                degree = matrix_stripe[src_index][1]
+                des_list = matrix_stripe[src_index][2]
+                for k in range(len(des_list)):
+                    dest_index=des_list[k]%get_group_size()
+                    r_new_stripe[dest_index] += belta * r_tmp_stripe[index] / degree
+        # sum计算
+        sum_r_group[i]=np.sum(r_new_stripe)
+        
+        #保存r_new至磁盘上
+        if flag==0:
+            with open(R_NEW_VECTOR_PATH_PREFIX+str(i)+R_NEW_VECTOR_PATH_SUFFIX,'wb') as fr:
+                pkl.dump(r_new_stripe,fr)
+        else:
+            with open(R_VECTOR_PATH_PREFIX+str(i)+R_VECTOR_PATH_SUFFIX,'wb') as fr:
+                pkl.dump(r_new_stripe,fr)
+    return np.sum(sum_r_group)
+```
+
+如上，可以看到我们避免了r的pagerank块的重复读取，每当我们读取一个r的块，就会解决掉每一块M中与其相关的r_new值的更新。这样大大提高了计算速度和效率。
+
+
+
+## 结果分析
+
+### basic pagerank
+
+我们首先运行我们编写的**basic pagerank**算法，得到如下结果：
+
+![3](3.jpg)
+
+
+
+对应的结果文件中如下：
+
+![5](5.jpg)
+
+
+
+### block stripe Pagerank
+
+我们运行我们编写的block stripe Pagerank算法，然后得到如下结果：
+
+![4](4.jpg)
+
+
+
+对应的结果文件如下：
+
+![6](6.jpg)
+
+
+
+### block stripe Pagerank加速算法
+
+我们运行我们编写的block stripe Pagerank加速算法，得到的结果如下：
+
+![7](7.jpg)
+
+
+
+对应的结果文件如下：
+
+![8](8.jpg)
+
+
+
+### 总结
+
+经过测试，我们的basic pagerank算法得出结果的速度最快，block stripe Pagerank加速算法次之，block stripe pagerank算法最慢。同时我们注意到三种算法对最后节点的排名是相同的，但是score值具有一些精度上的小差异。
+
+
+
+## 改进方向
+
+当内存不足的情况下，我们会使用分块的算法来用时间换空间。但是不合理的分块会导致时间的大量浪费，同时某些块的重复读取会导致大量的磁盘I/O，使得性能大大降低。因此未来的方向便是分块时如何制定合理的分块策略，如何减少块的重复读取和时间浪费。
