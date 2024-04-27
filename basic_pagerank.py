@@ -12,7 +12,7 @@ belta = 0.85  #the probability of following the link
 epsilon = 1e-8   #the threshold of the difference between the old and new pagerank
 Num=8297  #the number of nodes in the graph
 
-def load_data():
+def Preprocess():
     # Load the data from the file
     global max_node_index
     global Num
@@ -81,7 +81,10 @@ def print_result(r_new):
             f.write(f"{index[i]} {r_new[index[i]]}\n")
 
 if __name__ == '__main__':
-    load_data()
+    print("##############Start the basic pagerank algorithm...##############")
+    Preprocess()
+    print("Data loaded")
+    print("Begin to compute the pagerank")
     r_new = basic_pagerank()
     print_result(r_new)
 

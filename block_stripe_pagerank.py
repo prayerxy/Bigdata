@@ -27,7 +27,7 @@ def get_group_size():
 def get_last_group_size():
     return Num%(get_group_size())+1
 
-def load_data():
+def Preprocess():
     # Load the data from the file
     global max_node_index
     global Num
@@ -166,7 +166,7 @@ def print_result():
 
 if __name__ == '__main__':
     print("##############Block and Stripe PageRank begin##############")
-    load_data()
+    Preprocess()
     print("Data loaded")
     print("Begin to compute the pagerank")
     block_stripe_pagerank()
